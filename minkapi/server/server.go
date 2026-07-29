@@ -129,7 +129,7 @@ func (k *InMemServer) Start(ctx context.Context) error {
 
 	schedulerTmplParams := configtmpl.KubeSchedulerTmplParams{
 		KubeConfigPath:          k.cfg.KubeConfigPath,
-		KubeSchedulerConfigPath: fmt.Sprintf("/tmp/%s-bin-packing-scheduler-config.yaml", minkapi.ProgramName),
+		KubeSchedulerConfigPath: filepath.Join(filepath.Dir(k.cfg.KubeConfigPath), fmt.Sprintf("%s-%s-bin-packing-scheduler-config.yaml", minkapi.ProgramName, "base")),
 		QPS:                     100,
 		Burst:                   50,
 	}
