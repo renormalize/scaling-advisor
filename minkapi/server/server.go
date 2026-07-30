@@ -295,17 +295,24 @@ func (k *InMemServer) registerResourceRoutes(viewMux *http.ServeMux, d typeinfo.
 		viewMux.HandleFunc(fmt.Sprintf("PUT /api/v1/%s/{name}", r), handlePut(d, view))        // Update
 		viewMux.HandleFunc(fmt.Sprintf("PUT /api/v1/%s/{name}/status", r), handlePut(d, view)) // UpdateStatus
 	} else {
-		viewMux.HandleFunc(fmt.Sprintf("POST /apis/%s/v1/namespaces/{namespace}/%s", g, r), handleCreate(d, view))
-		viewMux.HandleFunc(fmt.Sprintf("GET /apis/%s/v1/namespaces/{namespace}/%s", g, r), handleListOrWatch(d, view))
-		viewMux.HandleFunc(fmt.Sprintf("GET /apis/%s/v1/namespaces/{namespace}/%s/{name}", g, r), handleGet(d, view))
-		viewMux.HandleFunc(fmt.Sprintf("PATCH /apis/%s/v1/namespaces/{namespace}/%s/{name}", g, r), handlePatch(d, view))
-		viewMux.HandleFunc(fmt.Sprintf("DELETE /apis/%s/v1/namespaces/{namespace}/%s/{name}", g, r), handleDelete(d, view))
-		viewMux.HandleFunc(fmt.Sprintf("PUT /apis/%s/v1/namespaces/{namespace}/%s/{name}", g, r), handlePut(d, view))
+		v := d.GVK.Version
+		viewMux.HandleFunc(fmt.Sprintf("POST /apis/%s/%s/namespaces/{namespace}/%s", g, v, r), handleCreate(d, view))
+		viewMux.HandleFunc(fmt.Sprintf("GET /apis/%s/%s/namespaces/{namespace}/%s", g, v, r), handleListOrWatch(d, view))
+		viewMux.HandleFunc(fmt.Sprintf("GET /apis/%s/%s/namespaces/{namespace}/%s/{name}", g, v, r), handleGet(d, view))
+		viewMux.HandleFunc(fmt.Sprintf("PATCH /apis/%s/%s/namespaces/{namespace}/%s/{name}", g, v, r), handlePatch(d, view))
+		viewMux.HandleFunc(fmt.Sprintf("PATCH /apis/%s/%s/namespaces/{namespace}/%s/{name}/status", g, v, r), handlePatchStatus(d, view))
+		viewMux.HandleFunc(fmt.Sprintf("DELETE /apis/%s/%s/namespaces/{namespace}/%s/{name}", g, v, r), handleDelete(d, view))
+		viewMux.HandleFunc(fmt.Sprintf("PUT /apis/%s/%s/namespaces/{namespace}/%s/{name}", g, v, r), handlePut(d, view))        // Update
+		viewMux.HandleFunc(fmt.Sprintf("PUT /apis/%s/%s/namespaces/{namespace}/%s/{name}/status", g, v, r), handlePut(d, view)) // UpdateStatus
 
-		viewMux.HandleFunc(fmt.Sprintf("POST /apis/%s/v1/%s", g, r), handleCreate(d, view))
-		viewMux.HandleFunc(fmt.Sprintf("GET /apis/%s/v1/%s", g, r), handleListOrWatch(d, view))
-		viewMux.HandleFunc(fmt.Sprintf("GET /apis/%s/v1/%s/{name}", g, r), handleGet(d, view))
-		viewMux.HandleFunc(fmt.Sprintf("DELETE /apis/%s/v1/%s/{name}", g, r), handleDelete(d, view))
+		viewMux.HandleFunc(fmt.Sprintf("POST /apis/%s/%s/%s", g, v, r), handleCreate(d, view))
+		viewMux.HandleFunc(fmt.Sprintf("GET /apis/%s/%s/%s", g, v, r), handleListOrWatch(d, view))
+		viewMux.HandleFunc(fmt.Sprintf("GET /apis/%s/%s/%s/{name}", g, v, r), handleGet(d, view))
+		viewMux.HandleFunc(fmt.Sprintf("PATCH /apis/%s/%s/%s/{name}", g, v, r), handlePatch(d, view))
+		viewMux.HandleFunc(fmt.Sprintf("PATCH /apis/%s/%s/%s/{name}/status", g, v, r), handlePatchStatus(d, view))
+		viewMux.HandleFunc(fmt.Sprintf("DELETE /apis/%s/%s/%s/{name}", g, v, r), handleDelete(d, view))
+		viewMux.HandleFunc(fmt.Sprintf("PUT /apis/%s/%s/%s/{name}", g, v, r), handlePut(d, view))        // Update
+		viewMux.HandleFunc(fmt.Sprintf("PUT /apis/%s/%s/%s/{name}/status", g, v, r), handlePut(d, view)) // UpdateStatus
 	}
 }
 
@@ -520,7 +527,7 @@ func handlePatchStatus(d typeinfo.Descriptor, view minkapi.View) http.HandlerFun
 	return func(w http.ResponseWriter, r *http.Request) {
 		objName := GetObjectName(r, d)
 		contentType := r.Header.Get("Content-Type")
-		if contentType != "application/strategic-merge-patch+json" {
+		if contentType != "application/strategic-merge-patch+json" && contentType != "application/merge-patch+json" {
 			err := fmt.Errorf("unsupported content type %q for o %q", contentType, objName)
 			handleBadRequest(w, r, err)
 			return

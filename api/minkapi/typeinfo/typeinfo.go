@@ -13,6 +13,8 @@ import (
 
 	commonconstants "github.com/gardener/scaling-advisor/api/common/constants"
 
+	groveopcorev1alpha1 "github.com/ai-dynamo/grove/operator/api/core/v1alpha1"
+	groveschedv1alpha1 "github.com/ai-dynamo/grove/scheduler/api/core/v1alpha1"
 	appsv1 "k8s.io/api/apps/v1"
 	coordinationv1 "k8s.io/api/coordination/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -47,6 +49,8 @@ func init() {
 		storagev1.AddToScheme,
 		nodev1.AddToScheme,
 		resourcev1.AddToScheme,
+		groveopcorev1alpha1.AddToScheme,
+		groveschedv1alpha1.AddToScheme,
 	}
 
 	SupportedScheme = runtime.NewScheme()
@@ -164,6 +168,27 @@ const (
 	KindDeviceClass string = "DeviceClass"
 	// KindDeviceClassList represents a list of Kubernetes DeviceClass resources (introduced as part of DRA).
 	KindDeviceClassList string = "DeviceClassList"
+
+	// KindPodCliqueSet represents a Grove PodCliqueSet resource.
+	KindPodCliqueSet string = "PodCliqueSet"
+	// KindPodCliqueSetList represents a list of Grove PodCliqueSet resources.
+	KindPodCliqueSetList string = "PodCliqueSetList"
+	// KindPodClique represents a Grove PodClique resource.
+	KindPodClique string = "PodClique"
+	// KindPodCliqueList represents a list of Grove PodClique resources.
+	KindPodCliqueList string = "PodCliqueList"
+	// KindPodCliqueScalingGroup represents a Grove PodCliqueScalingGroup resource.
+	KindPodCliqueScalingGroup string = "PodCliqueScalingGroup"
+	// KindPodCliqueScalingGroupList represents a list of Grove PodCliqueScalingGroup resources.
+	KindPodCliqueScalingGroupList string = "PodCliqueScalingGroupList"
+	// KindClusterTopologyBinding represents a Grove ClusterTopologyBinding resource.
+	KindClusterTopologyBinding string = "ClusterTopologyBinding"
+	// KindClusterTopologyBindingList represents a list of Grove ClusterTopologyBinding resources.
+	KindClusterTopologyBindingList string = "ClusterTopologyBindingList"
+	// KindPodGang represents a Grove PodGang resource.
+	KindPodGang string = "PodGang"
+	// KindPodGangList represents a list of Grove PodGang resources.
+	KindPodGangList string = "PodGangList"
 )
 
 // Descriptor is an aggregate holder of various bits of type information on a given Kind
@@ -282,6 +307,17 @@ var (
 	// DeviceClassDescriptor is an aggregate holder of type information for DeviceClass resources (introduced as part of DRA).
 	DeviceClassDescriptor = NewDescriptor(resourcev1.SchemeGroupVersion.WithKind(KindDeviceClass), KindDeviceClassList, false, "deviceclasses")
 
+	// PodCliqueSetDescriptor is an aggregate holder of type information for Grove PodCliqueSet resources.
+	PodCliqueSetDescriptor = NewDescriptor(groveopcorev1alpha1.SchemeGroupVersion.WithKind(KindPodCliqueSet), KindPodCliqueSetList, true, "podcliquesets", "pcs")
+	// PodCliqueDescriptor is an aggregate holder of type information for Grove PodClique resources.
+	PodCliqueDescriptor = NewDescriptor(groveopcorev1alpha1.SchemeGroupVersion.WithKind(KindPodClique), KindPodCliqueList, true, "podcliques", "pclq")
+	// PodCliqueScalingGroupDescriptor is an aggregate holder of type information for Grove PodCliqueScalingGroup resources.
+	PodCliqueScalingGroupDescriptor = NewDescriptor(groveopcorev1alpha1.SchemeGroupVersion.WithKind(KindPodCliqueScalingGroup), KindPodCliqueScalingGroupList, true, "podcliquescalinggroups", "pcsg")
+	// ClusterTopologyBindingDescriptor is an aggregate holder of type information for Grove ClusterTopologyBinding resources.
+	ClusterTopologyBindingDescriptor = NewDescriptor(groveopcorev1alpha1.SchemeGroupVersion.WithKind(KindClusterTopologyBinding), KindClusterTopologyBindingList, false, "clustertopologybindings", "ct")
+	// PodGangDescriptor is an aggregate holder of type information for Grove PodGang resources.
+	PodGangDescriptor = NewDescriptor(groveschedv1alpha1.SchemeGroupVersion.WithKind(KindPodGang), KindPodGangList, true, "podgangs", "pg")
+
 	// SupportedDescriptors is a list of all supported resource descriptors.
 	SupportedDescriptors = []Descriptor{
 		NamespacesDescriptor,
@@ -311,6 +347,11 @@ var (
 		ResourceSliceDescriptor,
 		ResourceClaimDescriptor,
 		DeviceClassDescriptor,
+		PodCliqueSetDescriptor,
+		PodCliqueDescriptor,
+		PodCliqueScalingGroupDescriptor,
+		ClusterTopologyBindingDescriptor,
+		PodGangDescriptor,
 	}
 
 	// SupportedAPIVersions is a metav1.APIVersions object representing the supported API versions.
@@ -430,6 +471,23 @@ func buildNonCoreAPIResourceLists() []metav1.APIResourceList {
 				ResourceSliceDescriptor.APIResource,
 				ResourceClaimDescriptor.APIResource,
 				DeviceClassDescriptor.APIResource,
+			},
+		},
+		{
+			TypeMeta:     metaV1APIResourceList,
+			GroupVersion: groveopcorev1alpha1.SchemeGroupVersion.String(),
+			APIResources: []metav1.APIResource{
+				PodCliqueSetDescriptor.APIResource,
+				PodCliqueDescriptor.APIResource,
+				PodCliqueScalingGroupDescriptor.APIResource,
+				ClusterTopologyBindingDescriptor.APIResource,
+			},
+		},
+		{
+			TypeMeta:     metaV1APIResourceList,
+			GroupVersion: groveschedv1alpha1.SchemeGroupVersion.String(),
+			APIResources: []metav1.APIResource{
+				PodGangDescriptor.APIResource,
 			},
 		},
 	}
