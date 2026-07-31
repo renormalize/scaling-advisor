@@ -207,7 +207,7 @@ func validateMinimumResourceVersion(desiredResourceVersion string, currentResour
 		return apierrors.NewBadRequest(fmt.Sprintf("invalid resource version %q: %v", currentResourceVersion, err))
 	}
 	if desiredRV > currentRV {
-		return apierrors.NewBadRequest(fmt.Sprintf("too large desired resource version: %q, current: %q", desiredRV, currentResourceVersion))
+		return apierrors.NewBadRequest(fmt.Sprintf("too large desired resource version: %d, current: %q", desiredRV, currentResourceVersion))
 	}
 	return nil
 }
