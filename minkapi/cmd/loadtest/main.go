@@ -11,6 +11,13 @@
 // needs the base kubeconfig minkapi serves. Example:
 //
 //	go run ./cmd/loadtest --kubeconfig /tmp/minkapi.yaml --nodes 10000 --pods 10000
+//
+// To target a kwok cluster instead, add --kwok: this stamps every node with the kwok
+// manage annotation and taint, and gives every pod the matching toleration, without
+// which kwok leaves all pods Pending. kwok bundles its own kube-scheduler, so nothing
+// else needs to run. Example:
+//
+//	go run ./cmd/loadtest --kubeconfig ./kwok-kubeconfig.yaml --nodes 10000 --pods 10000 --kwok
 package main
 
 import (
@@ -43,6 +50,15 @@ const (
 	// configured with a matching profile picks it up. An empty spec.schedulerName
 	// defaults to "default-scheduler", which the sample config also serves.
 	schedulerName = "default-scheduler"
+
+	// kwok tags: kwok manages fake nodes and taints them so real workloads do not
+	// land on them. When --kwok is set we stamp nodes with the manage annotation and
+	// the taint, and give pods the matching toleration; otherwise a kwok cluster
+	// leaves every pod Pending forever. These are no-ops for minkapi.
+	kwokNodeAnnotationKey   = "kwok.x-k8s.io/node"
+	kwokNodeAnnotationValue = "fake"
+	kwokTaintKey            = "kwok.x-k8s.io/node"
+	kwokTaintValue          = "fake"
 )
 
 type options struct {
@@ -51,6 +67,7 @@ type options struct {
 	workers    int
 	kubeConfig string
 	namespace  string
+	kwok       bool
 }
 
 func parseFlags() options {
@@ -60,6 +77,7 @@ func parseFlags() options {
 	flag.IntVar(&o.workers, "workers", 100, "number of concurrent create workers")
 	flag.StringVar(&o.kubeConfig, "kubeconfig", "", "path to the base kubeconfig minkapi serves (required)")
 	flag.StringVar(&o.namespace, "namespace", "default", "namespace to create pods in")
+	flag.BoolVar(&o.kwok, "kwok", false, "target a kwok cluster: stamp nodes with the kwok manage annotation + taint and give pods the matching toleration (nothing schedules on kwok without this)")
 	flag.Parse()
 	return o
 }
@@ -173,7 +191,7 @@ type createResult struct {
 func createPods(ctx context.Context, cs kubernetes.Interface, o options) createResult {
 	podsClient := cs.CoreV1().Pods(o.namespace)
 	return createConcurrent(ctx, o.pods, o.workers, "pods", func(ctx context.Context, index int) error {
-		_, err := podsClient.Create(ctx, newPod(o.namespace, podName(index)), metav1.CreateOptions{})
+		_, err := podsClient.Create(ctx, newPod(o.namespace, podName(index), o.kwok), metav1.CreateOptions{})
 		return err
 	})
 }
@@ -181,7 +199,7 @@ func createPods(ctx context.Context, cs kubernetes.Interface, o options) createR
 func createNodes(ctx context.Context, cs kubernetes.Interface, o options) createResult {
 	nodesClient := cs.CoreV1().Nodes()
 	return createConcurrent(ctx, o.nodes, o.workers, "nodes", func(ctx context.Context, index int) error {
-		node := newNode(nodeName(index))
+		node := newNode(nodeName(index), o.kwok)
 		created, err := nodesClient.Create(ctx, node, metav1.CreateOptions{})
 		if err != nil {
 			return err
@@ -258,9 +276,10 @@ func createConcurrent(ctx context.Context, count, workers int, label string, cre
 // newPod returns a pending (unscheduled) pod. spec.nodeName is left empty and
 // spec.schedulerName is pinned to a profile the external scheduler serves so it gets
 // picked up. It requests the node's full allocatable CPU (see newNode: 8) so
-// NodeResourcesFit places exactly one pod per node.
-func newPod(namespace, name string) *corev1.Pod {
-	return &corev1.Pod{
+// NodeResourcesFit places exactly one pod per node. When kwok is true the pod also
+// tolerates the kwok node taint, without which a kwok cluster never schedules it.
+func newPod(namespace, name string, kwok bool) *corev1.Pod {
+	pod := &corev1.Pod{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      name,
 			Namespace: namespace,
@@ -283,17 +302,29 @@ func newPod(namespace, name string) *corev1.Pod {
 			},
 		},
 	}
+	if kwok {
+		pod.Spec.Tolerations = []corev1.Toleration{
+			{
+				Key:      kwokTaintKey,
+				Operator: corev1.TolerationOpExists,
+				Effect:   corev1.TaintEffectNoSchedule,
+			},
+		}
+	}
+	return pod
 }
 
 // newNode returns a Ready, schedulable node with capacity/allocatable set so the
 // scheduler's NodeResourcesFit plugin can place pods on it. No taints, no kubelet.
-func newNode(name string) *corev1.Node {
+// When kwok is true the node carries the kwok manage annotation and the kwok taint
+// (mirroring how kwok tags nodes it manages); pods tolerate that taint (see newPod).
+func newNode(name string, kwok bool) *corev1.Node {
 	capacity := corev1.ResourceList{
 		corev1.ResourceCPU:    resource.MustParse("8"),
 		corev1.ResourceMemory: resource.MustParse("32Gi"),
 		corev1.ResourcePods:   resource.MustParse("110"),
 	}
-	return &corev1.Node{
+	node := &corev1.Node{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: name,
 			Labels: map[string]string{
@@ -316,6 +347,17 @@ func newNode(name string) *corev1.Node {
 			Phase: corev1.NodeRunning,
 		},
 	}
+	if kwok {
+		node.Annotations = map[string]string{kwokNodeAnnotationKey: kwokNodeAnnotationValue}
+		node.Spec.Taints = []corev1.Taint{
+			{
+				Key:    kwokTaintKey,
+				Value:  kwokTaintValue,
+				Effect: corev1.TaintEffectNoSchedule,
+			},
+		}
+	}
+	return node
 }
 
 // podName and nodeName mint deterministic, collision-free names from the worker index.
