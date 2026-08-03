@@ -220,11 +220,13 @@ func createNodes(ctx context.Context, cs kubernetes.Interface, o options) create
 // used only for progress output.
 func createConcurrent(ctx context.Context, count, workers int, label string, createOne func(ctx context.Context, index int) error) createResult {
 	var (
-		created  atomic.Int64
-		errCount atomic.Int64
-		errMu    sync.Mutex
-		errs     []error
-		wg       sync.WaitGroup
+		created   atomic.Int64
+		errCount  atomic.Int64
+		attempted atomic.Int64
+		firstErr  atomic.Bool
+		errMu     sync.Mutex
+		errs      []error
+		wg        sync.WaitGroup
 	)
 
 	work := make(chan int, workers*2)
@@ -239,16 +241,29 @@ func createConcurrent(ctx context.Context, count, workers int, label string, cre
 			for i := range work {
 				if err := createOne(ctx, i); err != nil {
 					errCount.Add(1)
+					// Surface the very first failure immediately. Otherwise a run where
+					// every create errors just sits silent (the success-based progress
+					// line below never fires) and looks like a hang.
+					if firstErr.CompareAndSwap(false, true) {
+						fmt.Printf("  !! first %s create error: %v\n", label, err)
+					}
 					errMu.Lock()
 					if len(errs) < 5 {
 						errs = append(errs, err)
 					}
 					errMu.Unlock()
-					continue
+				} else {
+					n := created.Add(1)
+					if n%progressEvery == 0 {
+						fmt.Printf("  ... %d %s created (%s elapsed)\n", n, label, time.Since(start).Round(time.Millisecond))
+					}
 				}
-				n := created.Add(1)
-				if n%progressEvery == 0 {
-					fmt.Printf("  ... %d %s created (%s elapsed)\n", n, label, time.Since(start).Round(time.Millisecond))
+				// Progress on total attempts too, so an all-erroring run still shows
+				// forward motion (and its error count) instead of appearing stuck.
+				a := attempted.Add(1)
+				if a%progressEvery == 0 {
+					fmt.Printf("  ... %d %s attempted (%d ok, %d err, %s elapsed)\n",
+						a, label, created.Load(), errCount.Load(), time.Since(start).Round(time.Millisecond))
 				}
 			}
 		})
