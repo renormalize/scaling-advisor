@@ -1,0 +1,25 @@
+apiVersion: kubescheduler.config.k8s.io/v1
+kind: KubeSchedulerConfiguration
+# NOTE: no clientConnection.kubeconfig here on purpose. kwokctl injects the
+# cluster's own kubeconfig into the scheduler; the cluster kubeconfig does not
+# exist until after `kwokctl create cluster` runs, so hardcoding a path (as the
+# minkapi config does) would be wrong. We only raise qps/burst so the bundled
+# scheduler is not client-throttled at scale.
+clientConnection:
+  qps: 10000
+  burst: 10000
+enableProfiling: true
+leaderElection:
+  leaderElect: false
+profiles:
+  - schedulerName: default-scheduler
+  - schedulerName: bin-packing-scheduler
+    pluginConfig:
+      - name: NodeResourcesFit
+        args:
+          scoringStrategy:
+            type: MostAllocated
+    plugins:
+      score:
+        disabled:
+          - name: NodeResourcesBalancedAllocation
