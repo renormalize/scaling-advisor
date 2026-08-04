@@ -109,7 +109,7 @@ kwok cluster is up and the load test is running.
   panes  : $P_PROF=profiler  $P_LOAD=loadtest
   kubeconfig: $KUBECONFIG_PATH
 
-profiler output lands in ./profiles/kwok-<timestamp>-n${NODES}-p${PODS}-w${WORKERS}/
+profiler output lands in ./profiles/<os>-kwok-<timestamp>-n${NODES}-p${PODS}-w${WORKERS}/
 
 teardown when done:
   tmux kill-session -t $SESSION

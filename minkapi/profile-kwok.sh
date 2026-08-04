@@ -23,13 +23,14 @@
 #   --duration  600
 #   --interval  5
 #   --name      kwok
-#   --outdir    ./profiles/kwok-<timestamp>[-n<NODES>-p<PODS>-w<WORKERS>]
+#   --outdir    ./profiles/<os>-kwok-<timestamp>[-n<NODES>-p<PODS>-w<WORKERS>]
 #   --nodes/--pods/--workers   unset (only used to label the default --outdir)
 #
 # Output directory naming mirrors profile.sh: an explicit --outdir wins; otherwise
-# ./profiles/kwok-<timestamp> with -n/-p/-w appended in that fixed order when given.
+# ./profiles/<os>-kwok-<timestamp> (<os> = lowercased `uname -s`, darwin | linux) with
+# -n/-p/-w appended in that fixed order when given.
 #
-# Per-component logs share the same 3-column format as minkapi's os-usage.log:
+# Per-component logs share the same 3-column format as minkapi's minkapi-usage.log:
 #   timestamp  cpu%(of one core, may exceed 100)  rss_MiB(resident RAM)
 # so they can be analyzed with the same awk peak-extraction patterns.
 
@@ -66,9 +67,10 @@ PIDS_DIR="$HOME/.kwok/clusters/${NAME}/pids"
 # files actually exist so the script still works if the component set changes.
 COMPONENTS="etcd kube-apiserver kube-controller-manager kube-scheduler kwok-controller"
 
-# Build the param-labelled default dir name (fixed field order: ts, nodes, pods, workers).
+# Build the param-labelled default dir name (fixed field order: os, kwok, ts, nodes, pods, workers).
 if [ -z "$OUTDIR" ]; then
-  default_name="kwok-$(date +%Y%m%d-%H%M%S)"
+  os="$(uname -s | tr '[:upper:]' '[:lower:]')"   # darwin | linux
+  default_name="${os}-kwok-$(date +%Y%m%d-%H%M%S)"
   [ -n "$NODES" ]   && default_name="${default_name}-n${NODES}"
   [ -n "$PODS" ]    && default_name="${default_name}-p${PODS}"
   [ -n "$WORKERS" ] && default_name="${default_name}-w${WORKERS}"
@@ -97,7 +99,7 @@ echo "profiling ${#PIDLIST[@]} kwok components of cluster '$NAME' for ${DURATION
 for i in "${!NAMES[@]}"; do echo "  ${NAMES[$i]} = pid ${PIDLIST[$i]}"; done
 
 # Header written to every per-component log and the combined total log. Columns match
-# minkapi's os-usage.log so the same analysis awk works.
+# minkapi's minkapi-usage.log so the same analysis awk works.
 write_header() {
   printf '# timestamp=sample time  cpu%%=%% of one core (may exceed 100)  rss_MiB=resident RAM\n' > "$1"
   printf '%-20s %8s %12s\n' "timestamp" "cpu%" "rss_MiB" >> "$1"
