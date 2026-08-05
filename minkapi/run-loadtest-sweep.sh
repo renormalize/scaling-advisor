@@ -185,4 +185,4 @@ for pair in "${PAIRS[@]}"; do
   echo
 done
 
-echo "sweep complete. per-run profiler artifacts are under ./profiles/<os>-<timestamp>-n<nodes>-p<pods>-w${WORKERS}/"
+echo "sweep complete. per-run profiler artifacts are under ./profiles/<os>-minkapi-<timestamp>-n<nodes>-p<pods>-w${WORKERS}/"

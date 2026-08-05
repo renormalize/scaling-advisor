@@ -40,12 +40,13 @@
 #   --nodes / --pods / --workers   unset (only used to label the default --outdir)
 #
 # Output directory naming (when --outdir is not given explicitly):
-#   ./profiles/<os>-<timestamp>[-n<NODES>-p<PODS>-w<WORKERS>]
-#   e.g. ./profiles/darwin-20260730-142530-n50000-p100000-w100
+#   ./profiles/<os>-minkapi-<timestamp>[-n<NODES>-p<PODS>-w<WORKERS>]
+#   e.g. ./profiles/darwin-minkapi-20260730-142530-n50000-p100000-w100
 #   <os> is the lowercased `uname -s` (darwin | linux). Field order is fixed: os,
-#   timestamp, then n<nodes>, p<pods>, w<workers>. Any of the three --nodes/--pods/--workers
-#   that are supplied are appended in THAT order; ones omitted are simply left out. An
-#   explicit --outdir overrides this entirely.
+#   minkapi, timestamp, then n<nodes>, p<pods>, w<workers>. Any of the three
+#   --nodes/--pods/--workers that are supplied are appended in THAT order; ones omitted
+#   are simply left out. This mirrors profile-kwok.sh's <os>-kwok-<timestamp> naming so
+#   minkapi and kwok runs sort side by side. An explicit --outdir overrides this entirely.
 #
 # Note: minkapi must be started with --profile. block/mutex profiles are
 # omitted because minkapi does not call SetBlockProfileRate / SetMutexProfileFraction,
@@ -80,10 +81,10 @@ while [ $# -gt 0 ]; do
   esac
 done
 
-# Build the param-labelled default dir name (fixed field order: os, ts, nodes, pods, workers).
+# Build the param-labelled default dir name (fixed field order: os, minkapi, ts, nodes, pods, workers).
 if [ -z "$OUTDIR" ]; then
   os="$(uname -s | tr '[:upper:]' '[:lower:]')"   # darwin | linux
-  default_name="${os}-$(date +%Y%m%d-%H%M%S)"
+  default_name="${os}-minkapi-$(date +%Y%m%d-%H%M%S)"
   [ -n "$NODES" ]   && default_name="${default_name}-n${NODES}"
   [ -n "$PODS" ]    && default_name="${default_name}-p${PODS}"
   [ -n "$WORKERS" ] && default_name="${default_name}-w${WORKERS}"
